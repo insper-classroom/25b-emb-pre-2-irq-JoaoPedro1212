@@ -1,22 +1,25 @@
 #include <stdio.h>
-
-#include "hardware/gpio.h"
+#include <stdbool.h>
 #include "pico/stdlib.h"
+#include "hardware/gpio.h"
 
-const int BTN_PIN_R = 28;
-const int BTN_PIN_G = 26;
+static const uint BTN_PIN_R = 28u;
+static const uint BTN_PIN_G = 26u;
 
-void btn_callback(uint gpio, uint32_t events) {
-    if (events == 0x4) {  // fall edge
+static volatile bool red_fall_pending = false;
+static volatile bool green_fall_pending = false;
+
+static void btn_callback(uint gpio, uint32_t events) {
+    if (events & GPIO_IRQ_EDGE_FALL) {
         if (gpio == BTN_PIN_R) {
-            printf("fall red\n");
+            red_fall_pending = true;
         } else if (gpio == BTN_PIN_G) {
-            printf("fall green\n");
+            green_fall_pending = true;
         }
     }
 }
 
-int main() {
+int main(void) {
     stdio_init_all();
 
     gpio_init(BTN_PIN_R);
@@ -27,13 +30,19 @@ int main() {
     gpio_set_dir(BTN_PIN_G, GPIO_IN);
     gpio_pull_up(BTN_PIN_G);
 
-    // callback led r (first)
-    gpio_set_irq_enabled_with_callback(BTN_PIN_R, GPIO_IRQ_EDGE_FALL, true,
-                                       &btn_callback);
-
-    // callback led g (nao usar _with_callback)
+    gpio_set_irq_enabled_with_callback(BTN_PIN_R, GPIO_IRQ_EDGE_FALL, true, &btn_callback);
     gpio_set_irq_enabled(BTN_PIN_G, GPIO_IRQ_EDGE_FALL, true);
 
     while (true) {
+        if (red_fall_pending) {
+            red_fall_pending = false;
+            printf("fall red\n");
+        }
+        if (green_fall_pending) {
+            green_fall_pending = false;
+            printf("fall green\n");
+        }
+
+        tight_loop_contents();
     }
 }

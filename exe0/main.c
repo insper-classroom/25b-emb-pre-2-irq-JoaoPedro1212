@@ -3,6 +3,19 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 
+#ifndef GPIO_IRQ_LEVEL_LOW
+#define GPIO_IRQ_LEVEL_LOW   (0x1u)
+#endif
+#ifndef GPIO_IRQ_LEVEL_HIGH
+#define GPIO_IRQ_LEVEL_HIGH  (0x2u)
+#endif
+#ifndef GPIO_IRQ_EDGE_FALL
+#define GPIO_IRQ_EDGE_FALL   (0x4u)
+#endif
+#ifndef GPIO_IRQ_EDGE_RISE
+#define GPIO_IRQ_EDGE_RISE   (0x8u)
+#endif
+
 static const uint BTN_PIN_R = 28u;
 
 static volatile bool btn_fall_flag = false;

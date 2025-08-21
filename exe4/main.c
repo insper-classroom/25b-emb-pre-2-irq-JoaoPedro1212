@@ -2,10 +2,23 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 
+#ifndef GPIO_IRQ_LEVEL_LOW
+#define GPIO_IRQ_LEVEL_LOW   (0x1u)
+#endif
+#ifndef GPIO_IRQ_LEVEL_HIGH
+#define GPIO_IRQ_LEVEL_HIGH  (0x2u)
+#endif
+#ifndef GPIO_IRQ_EDGE_FALL
+#define GPIO_IRQ_EDGE_FALL   (0x4u)
+#endif
+#ifndef GPIO_IRQ_EDGE_RISE
+#define GPIO_IRQ_EDGE_RISE   (0x8u)
+#endif
+
 static const uint BTN_PIN_RED   = 28u; 
 static const uint BTN_PIN_GREEN = 26u; 
-static const uint LED_PIN_RED   = 16u;  
-static const uint LED_PIN_GREEN = 17u;  
+static const uint LED_PIN_RED   = 4u;  
+static const uint LED_PIN_GREEN = 6u;  
 
 #define EV_RED_PRESS      (1u << 0)
 #define EV_GREEN_RELEASE  (1u << 1)

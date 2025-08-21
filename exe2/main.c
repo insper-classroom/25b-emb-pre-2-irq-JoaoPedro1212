@@ -1,51 +1,64 @@
-#include <stdio.h>
 #include <stdbool.h>
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 
-static const uint BTN_PIN = 28u;   
-static const uint LED_PIN = 16u;   
-static const uint32_t DEBOUNCE_US = 30000u;
+/* === AJUSTE AQUI CONFORME O DIAGRAMA === */
+#define LED_PIN   4   // tente 16; se não piscar no start, teste 0u
+#define BTN_PIN   28   // se não funcionar, teste 20u ou 21u
+/* ======================================= */
 
-static volatile bool btn_press_pending = false;
+/* Compat: evita erro do IntelliSense quando o SDK não é detectado */
+#ifndef GPIO_IRQ_EDGE_FALL
+#define GPIO_IRQ_EDGE_FALL  (0x4u)
+#endif
+#ifndef GPIO_IRQ_EDGE_RISE
+#define GPIO_IRQ_EDGE_RISE  (0x8u)
+#endif
 
-static void btn_irq_callback(uint gpio, uint32_t events) {
+static volatile bool press_pendente = false;
+
+static void btn_isr(uint gpio, uint32_t events) {
     (void)gpio;
     if (events & GPIO_IRQ_EDGE_FALL) {
-        btn_press_pending = true;
+        press_pendente = true;   // ISR curtíssima
     }
 }
 
 int main(void) {
-    stdio_init_all();
+    // stdio_init_all(); // não é necessário para este exercício
 
+    // LED como saída (inicia desligado)
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
-    bool led_state = false;
-    gpio_put(LED_PIN, led_state);
+    gpio_put(LED_PIN, 0);
 
+    // Auto-teste rápido: pisca 200 ms ao ligar para validar LED_PIN
+    gpio_put(LED_PIN, 1);
+    sleep_ms(200);
+    gpio_put(LED_PIN, 0);
+
+    // Botão com pull-up interno (ativo em nível baixo)
     gpio_init(BTN_PIN);
     gpio_set_dir(BTN_PIN, GPIO_IN);
     gpio_pull_up(BTN_PIN);
 
-    gpio_set_irq_enabled_with_callback(
-        BTN_PIN, GPIO_IRQ_EDGE_FALL, true, &btn_irq_callback
-    );
+    // IRQ na borda de descida (press)
+    gpio_set_irq_enabled_with_callback(BTN_PIN, GPIO_IRQ_EDGE_FALL, true, &btn_isr);
 
-    uint64_t ultima_troca_us = 0;
+    const uint32_t DEBOUNCE_US = 30000u;
+    uint64_t ultimo_toggle_us = 0;
 
     while (true) {
-        if (btn_press_pending) {
-            btn_press_pending = false;
+        if (press_pendente) {
+            press_pendente = false;
 
             uint64_t agora = time_us_64();
-            if (agora - ultima_troca_us >= DEBOUNCE_US) {
-                led_state = !led_state;       
-                gpio_put(LED_PIN, led_state); 
-                ultima_troca_us = agora;
+            if (agora - ultimo_toggle_us >= DEBOUNCE_US) {
+                // Alterna o LED
+                gpio_xor_mask(1u << LED_PIN);
+                ultimo_toggle_us = agora;
             }
         }
-
         tight_loop_contents();
     }
 }

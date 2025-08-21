@@ -2,36 +2,24 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 
-#ifndef GPIO_IRQ_LEVEL_LOW
-#define GPIO_IRQ_LEVEL_LOW   (0x1u)
-#endif
-#ifndef GPIO_IRQ_LEVEL_HIGH
-#define GPIO_IRQ_LEVEL_HIGH  (0x2u)
-#endif
-#ifndef GPIO_IRQ_EDGE_FALL
-#define GPIO_IRQ_EDGE_FALL   (0x4u)
-#endif
-#ifndef GPIO_IRQ_EDGE_RISE
-#define GPIO_IRQ_EDGE_RISE   (0x8u)
-#endif
-
-#define LED_PIN 4u   // pino do LED conforme diagrama do exe2
-#define BTN_PIN 28u   // pino do botão (pull-up, ativo em nível baixo)
-#define DEBOUNCE_US 30000u
+#define LED_PIN       4u      // LED vermelho do teste (ledr)
+#define BTN_PIN       28u      // botão com pull-up (ativo em nível baixo)
+#define DEBOUNCE_US   30000u   // ~30 ms
 
 static volatile bool press_pendente = false;
 
+/* ISR curtíssima: apenas sinaliza a borda de descida (press) */
 static void btn_isr(uint gpio, uint32_t events) {
     (void)gpio;
     if (events & GPIO_IRQ_EDGE_FALL) {
-        press_pendente = true;  // ISR curtíssima
+        press_pendente = true;
     }
 }
 
 int main(void) {
     // stdio_init_all(); // não necessário para o teste
 
-    // LED: inicia ACESO (o teste espera ledr:A == 1 em ~300 ms)
+    // LED começa ACESO (o teste exige ledr:A == 1 no início)
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
     gpio_put(LED_PIN, 1);
@@ -41,19 +29,19 @@ int main(void) {
     gpio_set_dir(BTN_PIN, GPIO_IN);
     gpio_pull_up(BTN_PIN);
 
-    // Interrupção na borda de descida (press)
+    // Interrupção na borda de descida
     gpio_set_irq_enabled_with_callback(BTN_PIN, GPIO_IRQ_EDGE_FALL, true, &btn_isr);
 
-    uint64_t ultimo_toggle_us = 0;
+    uint64_t ultimo_toggle = 0;
 
     while (true) {
         if (press_pendente) {
             press_pendente = false;
 
             uint64_t agora = time_us_64();
-            if (agora - ultimo_toggle_us >= DEBOUNCE_US) {
+            if (agora - ultimo_toggle >= DEBOUNCE_US) {
                 gpio_xor_mask(1u << LED_PIN);  // alterna o LED
-                ultimo_toggle_us = agora;
+                ultimo_toggle = agora;
             }
         }
         tight_loop_contents();
